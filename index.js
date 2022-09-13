@@ -19,6 +19,10 @@ const readableToSeconds = (read) => {
 
 const PORT = process.env.PORT || 5001;
 
+app.get('/', (req, res) => {
+    res.send("API works!");
+})
+
 // Retrieves all the athletes for a certain school in a given season
 // Body: { schoolId: 408, season: 2021}
 app.post('/getSchoolAthletes', async(req, res) => {
