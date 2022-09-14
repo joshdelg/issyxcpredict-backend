@@ -239,8 +239,60 @@ app.post('/scrapeMeetAthletes', async(req, res) => {
 
     } catch (err) {
         console.log("Error adding athletes from meet [", meetId, "]", err);
+        res.status(500);
     }
 });
+
+app.post('/scrapeSchoolAthletes', async(req, res) => {
+    const { schoolId, season } = req.body;
+
+    try {
+        const response = await got('https://www.athletic.net/CrossCountry/seasonbest', {
+            searchParams: {
+                SchoolID: schoolId,
+                S: season
+            }
+        });
+        const $ = cheerio.load(response.body);
+        
+        let teamAthletes = {
+            men: [],
+            women: []
+        };
+        
+        $('div.distance').each((i, el) => {
+            const menList = $('div#M_', el);
+            const womenList = $('div#F_', el);
+            
+            $('tr', menList).each((ii, runner) => {
+                const athleteId = $(runner).children().eq(2).children().first().attr().href.match(/[0-9]+/)[0];
+                if(!teamAthletes.men.find((a) => a == athleteId)) teamAthletes.men.push(athleteId);
+            });
+            
+            $('tr', womenList).each((ii, runner) => {
+                const athleteId = $(runner).children().eq(2).children().first().attr().href.match(/[0-9]+/)[0];
+                if(!teamAthletes.women.find((a) => a == athleteId)) teamAthletes.women.push(athleteId);
+            });
+        });
+        
+        const athletesToAdd = [...teamAthletes.men, ...teamAthletes.women];
+        let athletesAdded = 0;
+    
+        for(const aid of athletesToAdd) {
+            const added = await saveNewAthlete(aid);
+    
+            if(added) athletesAdded++;
+        }
+    
+        console.log(`Dump complete! ${athletesAdded} athletes added!`);
+        res.status(200).json({ athletesAdded, totalAthletes: athletesToAdd.length });
+        
+    } catch (err) {
+        console.log("Error getting ranked athletes on team [", schoolId, "]", err);
+        res.status(500);
+    }
+
+})
 
 // Connect to database
 mongoose.connect(process.env.mongoString).then(() => {
