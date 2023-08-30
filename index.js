@@ -5,6 +5,7 @@ const cors = require('cors');
 const got = require('got');
 const cheerio = require('cheerio');
 const path = require('path');
+const fs = require('fs');
 
 const { Athlete } = require('./schemas/AthleteSchema');
 
@@ -85,7 +86,8 @@ app.get('/Athletes/Meet/:meetId', async(req, res) => {
 
     try {
         const athletes = await Athlete.find({ "results.meets.meetId": meetId});
-        
+        console.log(`Found ${athletes.length} athletes`);
+
         if(athletes.length === 0) {
             res.status(404).send(`No athletes were found from meet ${meetId}`);
         } else {
@@ -255,6 +257,19 @@ app.post('/scrapeSchoolAthletes', async(req, res) => {
         console.log("Error getting ranked athletes on team [", schoolId, "]", err);
         res.status(500);
     }
+})
+
+app.post('/toCSV', (req, res) => {
+
+    const { data, stat } = req.body;
+
+    let content = stat == "time" ? "Avg. Time,Predicted Time\n" : "Time,SR\n";
+    data.forEach(line => {
+        content += `${line[0]},${line[1]}\n`
+    })
+    const filePath = stat == 'time' ? './outputs/time.csv' : './outputs/sr.csv';
+
+    fs.writeFileSync(filePath, content, { flag: 'w+' }, err => console.log(`Error writing CSV: ${err}`));
 })
 
 // Connect to database
